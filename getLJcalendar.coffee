@@ -1,4 +1,4 @@
-httpGet = (host,path, callback) ->
+httpGet = (host, path, callback) ->
   data = ""
   if debug
     console.log "getting", path
@@ -20,8 +20,8 @@ httpGet = (host,path, callback) ->
         console.log "got", path, "(" + httpGet.counter + " requests left)"
       callback null, data
   ).on("error", (e) ->
-    console.log "problem with request: " + e.message + " on "+path
-    process.exit()
+    console.log "problem with request, waiting 5s: " + e.message + " on "+path
+    setTimeout (-> httpGet host, path, callback), 5000
   ).end()
 
 

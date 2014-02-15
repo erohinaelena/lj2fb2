@@ -1,0 +1,19 @@
+{
+  "name": "lj2fb2",
+  "version": "0.0.0",
+  "description": "ERROR: No README.md file found!",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://bitbucket.org/erohinaelena/ljtofb2"
+  },
+  "author": "",
+  "license": "BSD",
+  "gitHead": "80166b6d4504cc5ada8a5af87363140fa0a7698e",
+  "dependencies": {
+    "async": "~0.2.10"
+  }
+}
