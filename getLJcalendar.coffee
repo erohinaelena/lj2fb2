@@ -49,42 +49,32 @@ getDays = (year,callback) ->
     (callback) ->
       httpGet user + ".livejournal.com", "/"+year+"/", callback
     (data,callback) ->
-      exprDay = /livejournal\.com(\/[\d]{4}\/[\d]{2}\/[\d]{2}\/)/g
+      exprDay = new RegExp user + "\\.livejournal\\.com(\\/"+year+"\\/[\\d]{2}\\/[\\d]{2}\\/)","g"
       days = extractAllMatches data, exprDay
-      console.log days
+      days = excludeEqual days
       callback null,days
     (days) ->
-      async.map days, getPostNumber, callback
+      async.map days, getPostID, callback
   ], (err,results) ->
       callback null,results
 
-getPostNumber = (day,callback) ->
+getPostID= (day,callback) ->
   async.waterfall [
     (callback) ->
       httpGet user + ".livejournal.com", day, callback
     (data,callback) ->
-      exprNumber = /itemid=([\d]+)[\s"']/g
-      numbers = extractAllMatches data, exprNumber
-      if numbers <= []
-        numbers = extractAllMatches data, /livejournal\.com\/([\d]+)\.html/g
-        i=0
-        arr=[]
-        while i<numbers.length
-          j=0
-          n=0
-          while j<arr.length
-            n=1 if arr[j]==numbers[i]
-            j++
-          arr.push numbers[i] if !n
-          i++
-        numbers=arr
+      exprID = /itemid=([\d]+)[\s"']/g
+      postID = extractAllMatches data, exprID
+      if postID <= []
+        exprID = new RegExp user +  "\\.livejournal\\.com\\/([\\d]+)\\.html","g"
+        postID = extractAllMatches data, exprID
+      postID= excludeEqual postID
       i=0
-      while i<numbers.length
-        numbers[i]= [numbers[i],day]
+      while i<postID.length
+        postID[i]= [postID[i],day]
         i++
-      callback null,numbers
+      callback null,postID
   ], (err,results) ->
-    console.log results
     callback null,results
 
 to1LevelArray = (arr) ->
@@ -103,17 +93,44 @@ to1LevelArray = (arr) ->
     i++
   return newArr
 
+excludeEqual = (arr)->
+  i=0
+  newArr=[]
+  while i<arr.length
+    j=0
+    equal=false
+    while j<newArr.length
+      equal=true if newArr[j]==arr[i]
+      j++
+    newArr.push arr[i] if !equal
+    i++
+  newArr
+
 getText = (id,callback) ->
   httpGet user+".livejournal.com","/data/rss?itemid="+id[0],(err,data) ->
     text = extractAllMatches data, /<description>([^<>]+)<\/description>/g
-    text = text[1]
+    text = text[1] if text
+    console.log text
     callback null, text
 
 getTitleTagsDate = (id,text,callback) ->
   httpGet user+".livejournal.com","/"+id[0]+".html",(err,data)->
-    title = /<title>[^<]+ - ([^<]*)<\/title>/g.exec data
+    titleExpr = new RegExp "<title>"+user+": ([^<]*)<\\/title>", "g"
+    title = titleExpr.exec data
+    if !title
+      title = /<title>[^<-]+ - ([^<]*)<\/title>/g.exec data
+    if !title
+      title = /<title>[^<-]+: ([^<]*)<\/title>/g.exec data
+    if !title
+      console.log id
     title = title[1]
-    tags = extractAllMatches data, new RegExp '<a rel=.tag. href=.http:\\/\\/'+user+'\\.livejournal\\.com\\/tag\\/[\\w%]+.>([а-яА-Я\\w\\s]+)<\\/a>','g'
+    console.log title
+    tags = extractAllMatches data, new RegExp '<a rel=[\"\']tag[\"\'] href=[\"\']http:\\/\\/'+user+'\\.livejournal\\.com\\/tag\\/[\\w%]+[\"\']>([^<]+)<\\/a>','g'
+    #if !tags.length
+    #  tags = extractAllMatches data, new RegExp '<a href=[\'\"]http:\\/\\/'+user+'\\.livejournal\\.com\\/tag\\/[\\w%]+[\"\']>([^<>]+)<\\/a>','g'
+    if !tags.length
+      tags = extractAllMatches data, /\.livejournal\.com\/tag\/[\w%]+[\"\']>([^<>]+)<\/a>/g
+      console.log tags
     date = />([^<>]+)<\/abbr>/g.exec data
     date = date[1] if date
     callback null, title: title,tags: tags,date: date,id: id,text:text
@@ -123,15 +140,16 @@ getAll = (id,callback) ->
     (callback) -> getText id,callback
     (text,callback)-> getTitleTagsDate id,text,callback
   ],(err,data)->
-    console.log data
+    #console.log data
     callback null,data
 
 async.waterfall [
   (callback) ->
     httpGet user + ".livejournal.com", "/calendar", callback
   (data, callback) ->
-    exprYear = /livejournal\.com(\/[\d]{4})\//g
+    exprYear = />([\d]{4})</g
     years = extractAllMatches data, exprYear
+    years = excludeEqual years
     async.map years, getDays, callback
   (numbers,callback)->
     numbers = to1LevelArray numbers
@@ -139,13 +157,15 @@ async.waterfall [
     callback null,numbers
   (postID,callback) ->
     async.map postID, getAll,callback
-], (err, results) ->
-  console.log results.length
+], (err, posts) ->
+  console.log posts.length
   fsort = (a,b)->
-    return 1 if a.id[1]<b.id[1]
-    return -1 if a.id[1]>b.id[1]
-    return 1 if a.id[0]<b.id[0]
-    return -1 if a.id[0 ]>b.id[0]
+    return 1 if a.id[1]>b.id[1]
+    return -1 if a.id[1]<b.id[1]
+    return 1 if a.id[0]>b.id[0]
+    return -1 if a.id[0]<b.id[0]
     return 0
-  results.sort fsort
-  fs.writeFile user+"All.json", JSON.stringify results
+  posts.sort fsort
+  toFB2 = require './toFB2.coffee'
+  toFB2 posts,user
+
