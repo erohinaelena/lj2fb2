@@ -14,6 +14,10 @@
   "license": "BSD",
   "gitHead": "80166b6d4504cc5ada8a5af87363140fa0a7698e",
   "dependencies": {
-    "async": "~0.2.10"
+    "async": "~0.2.10",
+    "mmmagic": "~0.3.6",
+    "lodash": "~2.4.1",
+    "http": "0.0.0",
+    "htmlparser": "~1.7.7"
   }
 }
